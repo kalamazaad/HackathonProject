@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, Users, Loader2, User } from 'lucide-react'
+import { Mail, Lock, Users, Loader2, User, Copy, Check } from 'lucide-react'
 import { useAuth } from './context/AuthContext'
 
 function AuthPage() {
@@ -17,6 +17,46 @@ function AuthPage() {
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [copiedField, setCopiedField] = useState('')
+
+  // Demo credentials
+  const demoCredentials = {
+    jobseeker: {
+      email: 'jobseeker@demo.com',
+      password: 'demo12345',
+      name: 'Demo Job Seeker',
+      userType: 'jobseeker'
+    },
+    employer: {
+      email: 'employer@demo.com',
+      password: 'demo12345',
+      name: 'Demo Employer',
+      userType: 'employer'
+    }
+  }
+
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(''), 2000)
+  }
+
+  const fillDemoCredentials = (type) => {
+    const creds = demoCredentials[type]
+    setFormData({
+      ...formData,
+      email: creds.email,
+      password: creds.password,
+      name: creds.name,
+      userType: creds.userType
+    })
+    setError('')
+    setSuccess('')
+    // Switch to login tab if on signup
+    if (activeTab === 'signup') {
+      setActiveTab('login')
+    }
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -61,6 +101,40 @@ function AuthPage() {
     }
 
     try {
+      // Check if using demo credentials
+      const isDemoJobSeeker = formData.email === demoCredentials.jobseeker.email && 
+                               formData.password === demoCredentials.jobseeker.password
+      const isDemoEmployer = formData.email === demoCredentials.employer.email && 
+                             formData.password === demoCredentials.employer.password
+
+      if (activeTab === 'login' && (isDemoJobSeeker || isDemoEmployer)) {
+        // Handle demo login without API call
+        setIsLoading(true)
+        const demoUser = isDemoJobSeeker 
+          ? {
+              id: 1,
+              email: demoCredentials.jobseeker.email,
+              name: demoCredentials.jobseeker.name,
+              userType: 'jobseeker',
+              isAdmin: 0
+            }
+          : {
+              id: 2,
+              email: demoCredentials.employer.email,
+              name: demoCredentials.employer.name,
+              userType: 'employer',
+              isAdmin: 0
+            }
+        
+        setSuccess('Demo login successful!')
+        login(demoUser)
+        setTimeout(() => {
+          navigate('/dashboard')
+        }, 1000)
+        setIsLoading(false)
+        return
+      }
+
       const endpoint = activeTab === 'login' ? '/api/auth/login' : '/api/auth/signup'
       const body = activeTab === 'login' 
         ? { email: formData.email, password: formData.password }
@@ -116,7 +190,37 @@ function AuthPage() {
       }
     } catch (error) {
       console.error('API Error:', error)
-      setError('Network error. Please make sure the server is running.')
+      // If network error and using demo credentials, try demo login
+      const isDemoJobSeeker = formData.email === demoCredentials.jobseeker.email && 
+                               formData.password === demoCredentials.jobseeker.password
+      const isDemoEmployer = formData.email === demoCredentials.employer.email && 
+                             formData.password === demoCredentials.employer.password
+      
+      if (activeTab === 'login' && (isDemoJobSeeker || isDemoEmployer)) {
+        const demoUser = isDemoJobSeeker 
+          ? {
+              id: 1,
+              email: demoCredentials.jobseeker.email,
+              name: demoCredentials.jobseeker.name,
+              userType: 'jobseeker',
+              isAdmin: 0
+            }
+          : {
+              id: 2,
+              email: demoCredentials.employer.email,
+              name: demoCredentials.employer.name,
+              userType: 'employer',
+              isAdmin: 0
+            }
+        
+        setSuccess('Demo login successful!')
+        login(demoUser)
+        setTimeout(() => {
+          navigate('/dashboard')
+        }, 1000)
+      } else {
+        setError('Network error. Please make sure the server is running.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -127,16 +231,118 @@ function AuthPage() {
       <div className="flex flex-col lg:flex-row min-h-screen">
         {/* Branding Section - Full Page Theme */}
         <div className="flex-1 flex flex-col justify-center items-center bg-gradient-to-br from-teal-50 via-emerald-50 to-green-50 px-6 py-12 lg:py-0">
-          <div className="text-center lg:text-left max-w-lg">
+          <div className="text-center lg:text-left max-w-lg w-full">
             <h1 className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent mb-4">
               Virtual Career Connect
             </h1>
             <p className="text-slate-700 italic text-lg mb-3">
               Access and manage your career opportunities seamlessly
             </p>
-            <p className="text-slate-600 text-base italic">
+            <p className="text-slate-600 text-base italic mb-8">
               Connecting The Possibilities
             </p>
+
+            {/* Demo Credentials Section */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-teal-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-teal-600" />
+                Demo Credentials
+              </h3>
+              
+              {/* Job Seeker Credentials */}
+              <div className="mb-4 p-4 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-lg border border-teal-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-teal-900">Job Seeker</span>
+                  <button
+                    onClick={() => fillDemoCredentials('jobseeker')}
+                    className="text-xs bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700 transition-colors cursor-pointer"
+                  >
+                    Use This
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Email:</span>
+                    <div className="flex items-center space-x-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded text-teal-700">{demoCredentials.jobseeker.email}</code>
+                      <button
+                        onClick={() => copyToClipboard(demoCredentials.jobseeker.email, 'jobseeker-email')}
+                        className="text-teal-600 hover:text-teal-700 cursor-pointer"
+                      >
+                        {copiedField === 'jobseeker-email' ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Password:</span>
+                    <div className="flex items-center space-x-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded text-teal-700">{demoCredentials.jobseeker.password}</code>
+                      <button
+                        onClick={() => copyToClipboard(demoCredentials.jobseeker.password, 'jobseeker-password')}
+                        className="text-teal-600 hover:text-teal-700 cursor-pointer"
+                      >
+                        {copiedField === 'jobseeker-password' ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Employer Credentials */}
+              <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg border border-emerald-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-emerald-900">Employer</span>
+                  <button
+                    onClick={() => fillDemoCredentials('employer')}
+                    className="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 transition-colors cursor-pointer"
+                  >
+                    Use This
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Email:</span>
+                    <div className="flex items-center space-x-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded text-emerald-700">{demoCredentials.employer.email}</code>
+                      <button
+                        onClick={() => copyToClipboard(demoCredentials.employer.email, 'employer-email')}
+                        className="text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                      >
+                        {copiedField === 'employer-email' ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Password:</span>
+                    <div className="flex items-center space-x-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded text-emerald-700">{demoCredentials.employer.password}</code>
+                      <button
+                        onClick={() => copyToClipboard(demoCredentials.employer.password, 'employer-password')}
+                        className="text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                      >
+                        {copiedField === 'employer-password' ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
